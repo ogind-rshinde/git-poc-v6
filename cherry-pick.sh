@@ -3,56 +3,40 @@
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 echo "Your current branch is $BRANCH"
 
-branchType=${BRANCH:0:3}
-if [[ "$branchType" == "Fea" ]]
+branchType=${BRANCH:0:4}
+if [ "$branchType" == "feat" ] || [ "$branchType" == "dvbg" ] || [ "$branchType" == "hfbg" ]
 then
-    parentBranch='main'
+    echo "$(tput setaf 1) ***** git cherry-pick is not applicable for this branch. **** "
+    exit;
 fi
 
-if [[ "$branchType" == "Bug" ]]
+if [[ "$branchType" == "qabg" ]]
 then
     parentBranch='release/next'
-fi
-
-if [[ "$branchType" == "Esn" ]]
-then
-    parentBranch='hotfix/next'
 fi
 
 
 if [[ "$BRANCH" != "$parentBranch" ]]
 then
-    echo " condition is matched, branch is updating ************   "
-    git checkout $parentBranch
-    git pull origin $parentBranch
-    git checkout $BRANCH
     git pull origin $BRANCH
+    git checkout main
+    git pull origin main
+    git checkout $parentBranch
+    git pull origin $parentBranch    
 fi
 
-commitIdArr=$(git log --pretty=format:"%h" -30)
+cherryPickCommitIdList=$(git log $BRANCH --not main release/next --oneline --no-merges --pretty=format:"%h|" --reverse)
+cherryPickArr=($(echo "$cherryPickCommitIdList" | tr '|' '\n'))
 
-parentBranchCommitId=$(git log origin/$parentBranch --pretty=format:"%h" -1)
-
-isExist=$(git branch --contains $parentBranchCommitId | grep $BRANCH)
-
-echo "Commit Id is $isExist on that branch"
-
-if [[ "$isExist" == "" ]]
-then
-    echo "Invoke the rebase......"
-    git rebase $parentBranch
-    git push origin $BRANCH -f
-    echo "$(tput setaf 2) **************** Rebase is successfully completed *************************"
-else
-    echo "$(tput setaf 2) ************************************************
-        ********** Your branch does not require rebase   ****************************"
-fi
-
-
-# PARENT_COMMIT_ID=$(git reflog --pretty=format:"%h" $BRANCH | tail -n 1)
-# echo $PARENT_COMMIT_ID
-# echo "**********************************"
-# for j in $(git reflog origin/main --pretty=format:'%h')
-# do
-#   echo "$j"
-# done
+for element in "${cherryPickArr[@]}"
+do
+    if [[ "$element" != "" ]]
+    then
+        echo "$(tput setaf 2) Invoke the cherry-pick for $element......"
+        git cherry-pick $element
+        echo "$(tput setaf 2) **************** Cherry-pick is initiated for $element *************************"
+    else
+        echo "$(tput setaf 1) ************************************************
+            ********** Commit Id is not valid, Please contact with administrator!!   ****************************"
+    fi
+done
